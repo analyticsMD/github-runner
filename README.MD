@@ -6,3 +6,10 @@ Using GitHub's actions-runner base image and adding the following:
 - nodejs
 - openssh-client
 - unzip
+
+## Pushing to GitHub Container Registry
+
+```
+docker build -t actions-runner-with-git --platform=linux/amd64 .
+
+```
