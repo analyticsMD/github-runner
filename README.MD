@@ -11,5 +11,6 @@ Using GitHub's actions-runner base image and adding the following:
 
 ```
 docker build -t actions-runner-with-git --platform=linux/amd64 .
-
+docker tag actions-runner-with-git ghcr.io/analyticsmd/github-runner
+docker push ghcr.io/analyticsmd/github-runner 
 ```
