@@ -24,62 +24,55 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          logout: false
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Docker image
+        run: |
+          docker build -t ghcr.io/analyticsmd/github-runner:latest \
+                      -t ghcr.io/analyticsmd/github-runner:${{ github.sha }} \
+                      --platform=linux/amd64 .
 
-      - name: Build and Push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: |
-            ghcr.io/analyticsmd/github-runner:latest
-            ghcr.io/analyticsmd/github-runner:${{ github.sha }}
+      - name: Push Docker image
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+          docker push ghcr.io/analyticsmd/github-runner:latest
 
-      - name: Send Success Slack notification
-        if: success()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          channel-id: 'C0830SADR0X' #devops-github-actions Slack Channel ID
-          payload: |
-            {
-              "text": "Docker Image Build Success",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/analyticsmd/github-runner:${{ github.sha }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      # - name: Send Success Slack notification
+      #   if: success()
+      #   uses: slackapi/slack-github-action@v1.24.0
+      #   with:
+      #     channel-id: 'C0830SADR0X' #devops-github-actions Slack Channel ID
+      #     payload: |
+      #       {
+      #         "text": "Docker Image Build Success",
+      #         "blocks": [
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/analyticsmd/github-runner:${{ github.sha }}"
+      #             }
+      #           }
+      #         ]
+      #       }
+      #   env:
+      #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
-      - name: Send Failure Slack notification
-        if: failure()
-        uses: slackapi/slack-github-action@v1.24.0
-        with:
-          channel-id: 'C0830SADR0X' #devops-github-actions Slack Channel ID
-          payload: |
-            {
-              "text": "Docker Image Build Failed",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "❌ *Docker Image Build Failed*\n*Repository:* ${{ github.repository }}\n*Workflow:* ${{ github.workflow }}\n*Error:* Build and push operation failed\n\n*Check the logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      # - name: Send Failure Slack notification
+      #   if: failure()
+      #   uses: slackapi/slack-github-action@v1.24.0
+      #   with:
+      #     channel-id: 'C0830SADR0X' #devops-github-actions Slack Channel ID
+      #     payload: |
+      #       {
+      #         "text": "Docker Image Build Failed",
+      #         "blocks": [
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "❌ *Docker Image Build Failed*\n*Repository:* ${{ github.repository }}\n*Workflow:* ${{ github.workflow }}\n*Error:* Build and push operation failed\n\n*Check the logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      #             }
+      #           }
+      #         ]
+      #       }
+      #   env:
+      #     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
