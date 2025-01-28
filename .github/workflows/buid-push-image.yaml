@@ -1,0 +1,54 @@
+name: Build and Push Docker Image
+
+on:
+  schedule:
+    # Runs at 00:00 UTC on the 1st and 15th of every month
+    - cron: '0 0 1,15 * *'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: analyticsmd/github-runner
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+            channel-id: 'C0830SADR0X' #devops-github-actions Slack Channel ID
+            slack-message: |
+              🎉 Github actions runner Docker image build and push completed!
+              🐳 Image: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}`
+              🔗 Commit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|View Commit>
+        env:
+            SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        if: always()
