@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: analyticsmd/github-runner
 
 jobs:
   build-and-push:
@@ -32,8 +31,8 @@ jobs:
           docker buildx build \
             --platform=linux/amd64 \
             --push \
-            -t ${{ env.REGISTRY }}/${{ env.REPO }}:latest \
-            -t ${{ env.REGISTRY }}/${{ env.REPO }}:${{ github.sha }} \
+            -t ghcr.io/analyticsmd/github-runner:latest \
+            -t ghcr.io/analyticsmd/github-runner:${{ github.sha }} \
             .
 
       - name: Send Success Slack notification
@@ -49,7 +48,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/${{ env.REPO }}:${{ github.sha }}"
+                    "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/analyticsmd/github-runner:${{ github.sha }}"
                   }
                 }
               ]
