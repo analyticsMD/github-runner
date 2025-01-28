@@ -24,16 +24,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image
-        id: docker_build
+      - name: Build Docker image
+        run: |
+          docker build -t ghcr.io/analyticsmd/github-runner:latest \
+                      -t ghcr.io/analyticsmd/github-runner:${{ github.sha }} \
+                      --platform=linux/amd64 .
+
+      - name: Push Docker image
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
-          docker buildx build \
-            --platform=linux/amd64 \
-            --push \
-            -t ghcr.io/analyticsmd/github-runner:latest \
-            -t ghcr.io/analyticsmd/github-runner:${{ github.sha }} \
-            .
+          docker push ghcr.io/analyticsmd/github-runner:latest
 
       - name: Send Success Slack notification
         if: success()
