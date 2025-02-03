@@ -32,8 +32,8 @@ jobs:
           docker buildx build \
             --platform=linux/amd64 \
             --push \
-            -t ${{ env.REGISTRY }}/${{ env.REPO }}:latest \
-            -t ${{ env.REGISTRY }}/${{ env.REPO }}:${{ github.sha }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             .
 
       - name: Send Success Slack notification
