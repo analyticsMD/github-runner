@@ -25,19 +25,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Add GitHub token permissions
-      - name: Add GitHub Token Permissions
-        run: |
-          echo "::add-mask::${{ secrets.GITHUB_TOKEN }}"
-          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
-
-      # Use docker/login-action with explicit token
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.PACKAGES_TOKEN }}
       
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -48,7 +41,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-
       # - name: Send Success Slack notification
       #   if: success()
       #   uses: slackapi/slack-github-action@v1.24.0
