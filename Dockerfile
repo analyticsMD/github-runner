@@ -14,3 +14,5 @@ RUN curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zi
 
 RUN mkdir -p ~/.ssh && \
     ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+RUN mkdir -p ./rootfs/usr/local/etc/atmos/
