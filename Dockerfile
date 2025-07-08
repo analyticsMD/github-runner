@@ -22,12 +22,12 @@ RUN mkdir -p ~/.ssh && \
     ssh-keyscan github.com >> ~/.ssh/known_hosts
 
 # Install Terraform
-RUN curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip && \
+RUN curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
     curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_SHA256SUMS" -o terraform_SHA256SUMS && \
     grep "terraform_${TERRAFORM_VERSION}_linux_amd64.zip" terraform_SHA256SUMS | sha256sum -c - && \
-    sudo unzip terraform.zip -d ${INSTALL_DIR} && \
+    sudo unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d ${INSTALL_DIR} && \
     sudo chmod +x ${INSTALL_DIR}/terraform && \
-    rm terraform.zip terraform_SHA256SUMS
+    rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip terraform_SHA256SUMS
 
 # Install ATMOS
 RUN curl -fsSL "https://github.com/cloudposse/atmos/releases/download/v${ATMOS_VERSION}/atmos_${ATMOS_VERSION}_linux_amd64" -o atmos && \
