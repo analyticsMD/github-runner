@@ -1,9 +1,9 @@
 FROM ghcr.io/actions/actions-runner:latest
 
 # Package configurations
-ENV ATMOS_VERSION=1.182.0
-ENV TERRAFORM_VERSION=1.9.8
-ENV INSTALL_DIR=/usr/local/bin
+ARG ATMOS_VERSION=1.182.0
+ARG TERRAFORM_VERSION=1.9.8
+ARG INSTALL_DIR=/usr/local/bin
 
 # Install git
 RUN sudo apt-get update && \
