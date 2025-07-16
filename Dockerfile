@@ -2,7 +2,7 @@ FROM ghcr.io/actions/actions-runner:latest
 
 # Install git
 RUN sudo apt-get update && \
-    sudo apt-get install -y git unzip jq openssh-client curl git-lfs perl && \
+    sudo apt-get install -y git unzip zip jq openssh-client curl git-lfs perl && \
     sudo apt-get clean && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     sudo apt-get install -y nodejs
