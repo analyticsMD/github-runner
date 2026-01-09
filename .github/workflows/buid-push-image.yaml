@@ -52,7 +52,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/${{ env.REPO }}:${{ github.sha }}"
+                    "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/${{ env.REPO }}:${{ github.sha }}\n<!channel>"
                   }
                 }
               ]
@@ -73,7 +73,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "❌ *Docker Image Build Failed*\n*Repository:* ${{ github.repository }}\n*Workflow:* ${{ github.workflow }}\n*Error:* Build and push operation failed\n\n*Check the logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    "text": "❌ *Docker Image Build Failed*\n*Repository:* ${{ github.repository }}\n*Workflow:* ${{ github.workflow }}\n*Error:* Build and push operation failed\n\n*Check the logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n<!channel>"
                   }
                 }
               ]
