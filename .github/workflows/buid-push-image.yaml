@@ -10,7 +10,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write  # Changed from 'read' to allow dummy commits
       packages: write
       id-token: write
 
@@ -80,3 +80,13 @@ jobs:
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Keep workflow active
+        if: always() && github.event_name == 'schedule'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Last workflow run: $(date -u)" > .github/.workflow-keep-alive
+          git add .github/.workflow-keep-alive
+          git diff --staged --quiet || git commit -m "chore: keep workflow active [skip ci]"
+          git push
