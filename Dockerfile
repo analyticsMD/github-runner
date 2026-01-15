@@ -10,7 +10,11 @@ RUN sudo apt-get update && \
 # Install Python 3.11 and pip3 securely
 RUN sudo apt-get update && \
     sudo apt-get install -y software-properties-common && \
-    sudo add-apt-repository ppa:deadsnakes/ppa -y && \
+    # Retry PPA addition in case Launchpad is temporarily unavailable
+    for i in 1 2 3; do \
+        sudo add-apt-repository ppa:deadsnakes/ppa -y && break || \
+        (echo "PPA add failed (attempt $i/3), retrying in 10 seconds..." && sleep 10); \
+    done && \
     sudo apt-get update && \
     sudo apt-get install -y python3.11 python3.11-venv python3.11-dev python3-pip && \
     sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
@@ -45,7 +49,7 @@ RUN set -eux; \
     \
     # Install Terraform v1.9.8
     echo "Installing Terraform v1.9.8..."; \
-    curl -fsSL "https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip" -o /tmp/terraform.zip && \
+    curl -fsSL "https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_${ARCH}.zip" -o /tmp/terraform.zip && \
     sudo unzip -q /tmp/terraform.zip -d /usr/local/bin/ && \
     rm /tmp/terraform.zip && \
     terraform version && \
