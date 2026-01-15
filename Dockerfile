@@ -43,9 +43,9 @@ RUN set -eux; \
     rm /tmp/atmos && \
     atmos version && \
     \
-    # Install Terraform (latest stable - 1.10.4)
-    echo "Installing Terraform v1.10.4..."; \
-    curl -fsSL "https://releases.hashicorp.com/terraform/1.10.4/terraform_1.10.4_linux_${ARCH}.zip" -o /tmp/terraform.zip && \
+    # Install Terraform v1.9.8
+    echo "Installing Terraform v1.9.8..."; \
+    curl -fsSL "https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip" -o /tmp/terraform.zip && \
     sudo unzip -q /tmp/terraform.zip -d /usr/local/bin/ && \
     rm /tmp/terraform.zip && \
     terraform version && \
