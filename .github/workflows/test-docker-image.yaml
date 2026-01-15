@@ -49,6 +49,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set lowercase owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -59,23 +62,23 @@ jobs:
       - name: Pull and verify test image
         run: |
           # Pull the test image
-          docker pull ghcr.io/${{ github.repository_owner }}/github-runner:test
+          docker pull ghcr.io/${{ env.OWNER }}/github-runner:test
           
           # Verify Atmos
           echo "Checking Atmos..."
-          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test atmos version
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test atmos version
           
           # Verify Terraform
           echo "Checking Terraform..."
-          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test terraform version
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform version
           
           # Verify tfcmt
           echo "Checking tfcmt..."
-          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test tfcmt --version
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test tfcmt --version
           
           # Verify terraform-docs
           echo "Checking terraform-docs..."
-          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test terraform-docs --version
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform-docs --version
           
           # Summary
           echo "✅ All tools verified successfully!"
