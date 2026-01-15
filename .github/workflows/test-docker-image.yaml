@@ -47,47 +47,36 @@ jobs:
     name: Verify Pre-installed Tools
     needs: build-test-image
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/${{ github.repository_owner }}/github-runner:test
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - name: Verify Atmos installation
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and verify test image
         run: |
+          # Pull the test image
+          docker pull ghcr.io/${{ github.repository_owner }}/github-runner:test
+          
+          # Verify Atmos
           echo "Checking Atmos..."
-          atmos version
-          which atmos
-
-      - name: Verify Terraform installation
-        run: |
+          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test atmos version
+          
+          # Verify Terraform
           echo "Checking Terraform..."
-          terraform version
-          which terraform
-
-      - name: Verify tfcmt installation
-        run: |
+          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test terraform version
+          
+          # Verify tfcmt
           echo "Checking tfcmt..."
-          tfcmt --version
-          which tfcmt
-
-      - name: Verify terraform-docs installation
-        run: |
+          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test tfcmt --version
+          
+          # Verify terraform-docs
           echo "Checking terraform-docs..."
-          terraform-docs --version
-          which terraform-docs
-
-      - name: Verify all tools are in PATH
-        run: |
-          echo "All tools verified successfully!"
-          echo "✅ Atmos: $(atmos version | head -n 1)"
-          echo "✅ Terraform: $(terraform version | head -n 1)"
-          echo "✅ tfcmt: $(tfcmt --version)"
-          echo "✅ terraform-docs: $(terraform-docs --version)"
-
-      - name: Summary
-        if: success()
-        run: |
-          echo "🎉 All pre-installed tools are working correctly!"
+          docker run --rm ghcr.io/${{ github.repository_owner }}/github-runner:test terraform-docs --version
+          
+          # Summary
+          echo "✅ All tools verified successfully!"
           echo "The Docker image is ready to use and will avoid GitHub API rate limits."
