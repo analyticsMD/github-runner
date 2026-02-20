@@ -10,7 +10,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write  # Changed from 'read' to allow dummy commits
       packages: write
       id-token: write
 
@@ -52,7 +52,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/${{ env.REPO }}:${{ github.sha }}"
+                    "text": "✅ *Docker Image Build Successful*\n*Repository:* ${{ github.repository }}\n*Image:* ${{ env.REGISTRY }}/${{ env.REPO }}:${{ github.sha }}\n<!channel>"
                   }
                 }
               ]
@@ -73,10 +73,20 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "❌ *Docker Image Build Failed*\n*Repository:* ${{ github.repository }}\n*Workflow:* ${{ github.workflow }}\n*Error:* Build and push operation failed\n\n*Check the logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    "text": "❌ *Docker Image Build Failed*\n*Repository:* ${{ github.repository }}\n*Workflow:* ${{ github.workflow }}\n*Error:* Build and push operation failed\n\n*Check the logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n<!channel>"
                   }
                 }
               ]
             }
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Keep workflow active
+        if: always() && github.event_name == 'schedule'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Last workflow run: $(date -u)" > .github/.workflow-keep-alive
+          git add .github/.workflow-keep-alive
+          git diff --staged --quiet || git commit -m "chore: keep workflow active [skip ci]"
+          git push

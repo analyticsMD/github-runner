@@ -1,0 +1,85 @@
+name: Test Docker Image Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/test-docker-image.yaml'
+
+jobs:
+  build-test-image:
+    name: Build Test Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER }}/github-runner:test
+            ghcr.io/${{ env.OWNER }}/github-runner:test-${{ github.sha }}
+
+  verify-tools:
+    name: Verify Pre-installed Tools
+    needs: build-test-image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set lowercase owner
+        run: echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and verify test image
+        run: |
+          # Pull the test image
+          docker pull ghcr.io/${{ env.OWNER }}/github-runner:test
+          
+          # Verify Atmos
+          echo "Checking Atmos..."
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test atmos version
+          
+          # Verify Terraform
+          echo "Checking Terraform..."
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform version
+          
+          # Verify tfcmt
+          echo "Checking tfcmt..."
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test tfcmt --version
+          
+          # Verify terraform-docs
+          echo "Checking terraform-docs..."
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform-docs --version
+          
+          # Summary
+          echo "✅ All tools verified successfully!"
+          echo "The Docker image is ready to use and will avoid GitHub API rate limits."
