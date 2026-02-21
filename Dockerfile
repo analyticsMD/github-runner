@@ -54,9 +54,9 @@ RUN set -eux; \
     rm /tmp/terraform.zip && \
     terraform version && \
     \
-    # Install tfcmt v4.14.0
-    echo "Installing tfcmt v4.14.0..."; \
-    curl -fsSL "https://github.com/suzuki-shunsuke/tfcmt/releases/download/v4.14.0/tfcmt_linux_${ARCH}.tar.gz" -o /tmp/tfcmt.tar.gz && \
+    # Install tfcmt v4.14.5
+    echo "Installing tfcmt v4.14.5..."; \
+    curl -fsSL "https://github.com/suzuki-shunsuke/tfcmt/releases/download/v4.14.5/tfcmt_linux_${ARCH}.tar.gz" -o /tmp/tfcmt.tar.gz && \
     sudo tar -xzf /tmp/tfcmt.tar.gz -C /usr/local/bin/ tfcmt && \
     rm /tmp/tfcmt.tar.gz && \
     tfcmt --version && \
@@ -69,6 +69,21 @@ RUN set -eux; \
     terraform-docs --version && \
     \
     echo "All tools installed successfully!"
+
+
+ENV PATH="/home/runner/.local/share/aquaproj-aqua/bin:${PATH}"
+RUN set -eux; \
+    curl -sSfL https://raw.githubusercontent.com/aquaproj/aqua-installer/v3.1.2/aqua-installer | bash -s -- -v v2.50.0; \
+    printf '%s\n' \
+      'registries:' \
+      '  - type: standard' \
+      '    ref: v4.233.0' \
+      'packages:' \
+      '  - name: suzuki-shunsuke/tfcmt@v4.14.5' \
+      '  - name: terraform-docs/terraform-docs@v0.18.0' \
+      > /tmp/aqua.yaml; \
+    AQUA_CONFIG=/tmp/aqua.yaml aqua install; \
+    rm /tmp/aqua.yaml
 
 RUN mkdir -p ~/.ssh && \
     ssh-keyscan github.com >> ~/.ssh/known_hosts
