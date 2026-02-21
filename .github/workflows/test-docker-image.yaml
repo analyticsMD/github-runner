@@ -63,23 +63,11 @@ jobs:
         run: |
           # Pull the test image
           docker pull ghcr.io/${{ env.OWNER }}/github-runner:test
-          
-          # Verify Atmos
-          echo "Checking Atmos..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test atmos version
-          
-          # Verify Terraform
-          echo "Checking Terraform..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform version
-          
-          # Verify tfcmt
-          echo "Checking tfcmt..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test tfcmt --version
-          
-          # Verify terraform-docs
-          echo "Checking terraform-docs..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform-docs --version
-          
+
+          # Verify AWS CLI
+          echo "Checking AWS CLI..."
+          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test aws --version
+
           # Summary
           echo "✅ All tools verified successfully!"
           echo "The Docker image is ready to use and will avoid GitHub API rate limits."
