@@ -6,6 +6,10 @@ on:
     - cron: '0 0 1,15 * *'
   workflow_dispatch:
 
+env:
+  ECR_REGISTRY: 351480950201.dkr.ecr.us-west-2.amazonaws.com
+  ECR_REPOSITORY: github-runner
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -30,6 +34,34 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate via GitHub Actions OIDC (auth role)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::351480950201:role/qv-internal-github-actions-auth-role
+          aws-region: us-west-2
+
+      - name: Chain into ECR push role with repository session tag
+        run: |
+          CREDS=$(aws sts assume-role \
+            --role-arn arn:aws:iam::351480950201:role/qv-internal-github-actions-ecr-gha-deploy-role \
+            --role-session-name github-runner-ecr-push \
+            --tags "Key=repository,Value=analyticsMD/github-runner")
+          KEY=$(echo "$CREDS" | jq -r .Credentials.AccessKeyId)
+          SECRET=$(echo "$CREDS" | jq -r .Credentials.SecretAccessKey)
+          TOKEN=$(echo "$CREDS" | jq -r .Credentials.SessionToken)
+          echo "::add-mask::$KEY"
+          echo "::add-mask::$SECRET"
+          echo "::add-mask::$TOKEN"
+          {
+            echo "AWS_ACCESS_KEY_ID=$KEY"
+            echo "AWS_SECRET_ACCESS_KEY=$SECRET"
+            echo "AWS_SESSION_TOKEN=$TOKEN"
+          } >> "$GITHUB_ENV"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -39,6 +71,8 @@ jobs:
           tags: |
             ghcr.io/${{ env.OWNER }}/github-runner:latest
             ghcr.io/${{ env.OWNER }}/github-runner:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
       - name: Send Success Slack notification
         if: success()
         uses: slackapi/slack-github-action@v1.24.0
