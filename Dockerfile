@@ -1,6 +1,21 @@
 FROM ghcr.io/actions/actions-runner:latest
 
-# Install git
+# ──────────────────────────────────────────────────────────────────────────────
+# Tool versions
+# ──────────────────────────────────────────────────────────────────────────────
+ARG ATMOS_VERSION=1.207.0
+ARG TERRAFORM_VERSION=1.9.8
+ARG TFCMT_VERSION=4.14.5
+ARG TERRAFORM_DOCS_VERSION=0.18.0
+ARG INFRACOST_VERSION=0.10.40
+ARG HELM_VERSION=3.14.3
+ARG HELMFILE_VERSION=1.2.3
+ARG KUBECTL_VERSION=1.29.4
+ARG HELM_DIFF_VERSION=3.12.2
+
+# ──────────────────────────────────────────────────────────────────────────────
+# OS packages
+# ──────────────────────────────────────────────────────────────────────────────
 RUN sudo apt-get update && \
     sudo apt-get install -y git unzip zip jq openssh-client curl git-lfs perl && \
     sudo apt-get clean && \
@@ -10,7 +25,6 @@ RUN sudo apt-get update && \
 # Install Python 3.11 and pip3 securely
 RUN sudo apt-get update && \
     sudo apt-get install -y software-properties-common && \
-    # Retry PPA addition in case Launchpad is temporarily unavailable
     for i in 1 2 3; do \
         sudo add-apt-repository ppa:deadsnakes/ppa -y && break || \
         (echo "PPA add failed (attempt $i/3), retrying in 10 seconds..." && sleep 10); \
@@ -22,16 +36,19 @@ RUN sudo apt-get update && \
     sudo apt-get clean && \
     sudo rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip to latest version for security
 RUN python3 -m pip install --upgrade pip setuptools wheel
 
+# ──────────────────────────────────────────────────────────────────────────────
+# AWS CLI v2
+# ──────────────────────────────────────────────────────────────────────────────
 RUN curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip \
     && sudo unzip awscliv2.zip \
     && sudo ./aws/install \
     && sudo rm -rf aws awscliv2.zip
 
-# Install workflow tools to avoid GitHub API rate limits during execution
-# All tools are installed in a single layer to minimize image size
+# ──────────────────────────────────────────────────────────────────────────────
+# IaC tooling (Atmos, Terraform, tfcmt, terraform-docs, Infracost)
+# ──────────────────────────────────────────────────────────────────────────────
 RUN set -eux; \
     ARCH="$(uname -m)"; \
     case "$ARCH" in \
@@ -40,51 +57,79 @@ RUN set -eux; \
         *) echo "Unsupported architecture: $ARCH"; exit 1 ;; \
     esac; \
     \
-    # Install Atmos CLI v1.195.0
-    echo "Installing Atmos CLI v1.195.0..."; \
-    curl -fsSL "https://github.com/cloudposse/atmos/releases/download/v1.195.0/atmos_1.195.0_linux_${ARCH}" -o /tmp/atmos && \
+    echo "Installing Atmos CLI v${ATMOS_VERSION}..."; \
+    curl -fsSL "https://github.com/cloudposse/atmos/releases/download/v${ATMOS_VERSION}/atmos_${ATMOS_VERSION}_linux_${ARCH}" -o /tmp/atmos && \
     sudo install -m 755 /tmp/atmos /usr/local/bin/atmos && \
     rm /tmp/atmos && \
     atmos version && \
     \
-    # Install Terraform v1.9.8
-    echo "Installing Terraform v1.9.8..."; \
-    curl -fsSL "https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_${ARCH}.zip" -o /tmp/terraform.zip && \
+    echo "Installing Terraform v${TERRAFORM_VERSION}..."; \
+    curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip" -o /tmp/terraform.zip && \
     sudo unzip -q /tmp/terraform.zip -d /usr/local/bin/ && \
     rm /tmp/terraform.zip && \
     terraform version && \
     \
-    # Install tfcmt v4.14.5
-    echo "Installing tfcmt v4.14.5..."; \
-    curl -fsSL "https://github.com/suzuki-shunsuke/tfcmt/releases/download/v4.14.5/tfcmt_linux_${ARCH}.tar.gz" -o /tmp/tfcmt.tar.gz && \
+    echo "Installing tfcmt v${TFCMT_VERSION}..."; \
+    curl -fsSL "https://github.com/suzuki-shunsuke/tfcmt/releases/download/v${TFCMT_VERSION}/tfcmt_linux_${ARCH}.tar.gz" -o /tmp/tfcmt.tar.gz && \
     sudo tar -xzf /tmp/tfcmt.tar.gz -C /usr/local/bin/ tfcmt && \
     rm /tmp/tfcmt.tar.gz && \
     tfcmt --version && \
     \
-    # Install terraform-docs v0.18.0
-    echo "Installing terraform-docs v0.18.0..."; \
-    curl -fsSL "https://github.com/terraform-docs/terraform-docs/releases/download/v0.18.0/terraform-docs-v0.18.0-linux-${ARCH}.tar.gz" -o /tmp/terraform-docs.tar.gz && \
+    echo "Installing terraform-docs v${TERRAFORM_DOCS_VERSION}..."; \
+    curl -fsSL "https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/terraform-docs.tar.gz && \
     sudo tar -xzf /tmp/terraform-docs.tar.gz -C /usr/local/bin/ terraform-docs && \
     rm /tmp/terraform-docs.tar.gz && \
     terraform-docs --version && \
     \
-    echo "All tools installed successfully!"
+    echo "Installing Infracost v${INFRACOST_VERSION}..."; \
+    curl -fsSL "https://github.com/infracost/infracost/releases/download/v${INFRACOST_VERSION}/infracost-linux-${ARCH}.tar.gz" -o /tmp/infracost.tar.gz && \
+    tar -xzf /tmp/infracost.tar.gz -C /tmp/ && \
+    sudo install -m 755 /tmp/infracost-linux-${ARCH} /usr/local/bin/infracost && \
+    rm -rf /tmp/infracost* && \
+    infracost --version && \
+    \
+    echo "All IaC tools installed successfully!"
 
-
-ENV PATH="/home/runner/.local/share/aquaproj-aqua/bin:${PATH}"
+# ──────────────────────────────────────────────────────────────────────────────
+# Kubernetes tooling (Helm, Helmfile, kubectl, helm-diff)
+# ──────────────────────────────────────────────────────────────────────────────
 RUN set -eux; \
-    curl -sSfL https://raw.githubusercontent.com/aquaproj/aqua-installer/v3.1.2/aqua-installer | bash -s -- -v v2.50.0; \
-    printf '%s\n' \
-      'registries:' \
-      '  - type: standard' \
-      '    ref: v4.233.0' \
-      'packages:' \
-      '  - name: suzuki-shunsuke/tfcmt@v4.14.5' \
-      '  - name: terraform-docs/terraform-docs@v0.18.0' \
-      > /tmp/aqua.yaml; \
-    AQUA_CONFIG=/tmp/aqua.yaml aqua install; \
-    rm /tmp/aqua.yaml
+    ARCH="$(uname -m)"; \
+    case "$ARCH" in \
+        x86_64) ARCH='amd64' ;; \
+        aarch64) ARCH='arm64' ;; \
+        *) echo "Unsupported architecture: $ARCH"; exit 1 ;; \
+    esac; \
+    \
+    echo "Installing Helm v${HELM_VERSION}..."; \
+    curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" -o /tmp/helm.tar.gz && \
+    tar -xzf /tmp/helm.tar.gz -C /tmp/ && \
+    sudo install -m 755 /tmp/linux-${ARCH}/helm /usr/local/bin/helm && \
+    rm -rf /tmp/helm.tar.gz /tmp/linux-${ARCH} && \
+    helm version && \
+    \
+    echo "Installing Helmfile v${HELMFILE_VERSION}..."; \
+    curl -fsSL "https://github.com/helmfile/helmfile/releases/download/v${HELMFILE_VERSION}/helmfile_${HELMFILE_VERSION}_linux_${ARCH}.tar.gz" -o /tmp/helmfile.tar.gz && \
+    tar -xzf /tmp/helmfile.tar.gz -C /tmp/ helmfile && \
+    sudo install -m 755 /tmp/helmfile /usr/local/bin/helmfile && \
+    rm -f /tmp/helmfile.tar.gz /tmp/helmfile && \
+    helmfile --version && \
+    \
+    echo "Installing kubectl v${KUBECTL_VERSION}..."; \
+    curl -fsSL "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" -o /tmp/kubectl && \
+    sudo install -m 755 /tmp/kubectl /usr/local/bin/kubectl && \
+    rm /tmp/kubectl && \
+    kubectl version --client && \
+    \
+    echo "Kubernetes tools installed successfully!"
 
+ENV HELM_DATA_HOME=/usr/local/share/helm
+RUN sudo mkdir -p ${HELM_DATA_HOME} && sudo chown $(whoami) ${HELM_DATA_HOME} && \
+    helm plugin install https://github.com/databus23/helm-diff --version v${HELM_DIFF_VERSION}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SSH & workspace setup
+# ──────────────────────────────────────────────────────────────────────────────
 RUN mkdir -p ~/.ssh && \
     ssh-keyscan github.com >> ~/.ssh/known_hosts
 

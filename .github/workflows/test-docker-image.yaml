@@ -61,25 +61,37 @@ jobs:
 
       - name: Pull and verify test image
         run: |
-          # Pull the test image
           docker pull ghcr.io/${{ env.OWNER }}/github-runner:test
-          
-          # Verify Atmos
+          IMAGE="ghcr.io/${{ env.OWNER }}/github-runner:test"
+
           echo "Checking Atmos..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test atmos version
-          
-          # Verify Terraform
+          docker run --rm $IMAGE atmos version
+
           echo "Checking Terraform..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform version
-          
-          # Verify tfcmt
+          docker run --rm $IMAGE terraform version
+
           echo "Checking tfcmt..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test tfcmt --version
-          
-          # Verify terraform-docs
+          docker run --rm $IMAGE tfcmt --version
+
           echo "Checking terraform-docs..."
-          docker run --rm ghcr.io/${{ env.OWNER }}/github-runner:test terraform-docs --version
-          
-          # Summary
+          docker run --rm $IMAGE terraform-docs --version
+
+          echo "Checking Infracost..."
+          docker run --rm $IMAGE infracost --version
+
+          echo "Checking Helm..."
+          docker run --rm $IMAGE helm version
+
+          echo "Checking Helmfile..."
+          docker run --rm $IMAGE helmfile --version
+
+          echo "Checking kubectl..."
+          docker run --rm $IMAGE kubectl version --client
+
+          echo "Checking helm-diff..."
+          docker run --rm $IMAGE helm diff version
+
+          echo "Checking AWS CLI..."
+          docker run --rm $IMAGE aws --version
+
           echo "✅ All tools verified successfully!"
-          echo "The Docker image is ready to use and will avoid GitHub API rate limits."
