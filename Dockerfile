@@ -19,7 +19,7 @@ ARG HELM_DIFF_VERSION=3.12.2
 RUN sudo apt-get update && \
     sudo apt-get install -y git unzip zip jq openssh-client curl git-lfs perl && \
     sudo apt-get clean && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     sudo apt-get install -y nodejs
 
 # Install Python 3.11 and pip3 securely
