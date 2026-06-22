@@ -3,7 +3,7 @@ FROM ghcr.io/actions/actions-runner:latest
 # ──────────────────────────────────────────────────────────────────────────────
 # Tool versions
 # ──────────────────────────────────────────────────────────────────────────────
-ARG ATMOS_VERSION=1.207.0
+ARG ATMOS_VERSION=1.221.1
 ARG TERRAFORM_VERSION=1.9.8
 ARG TFCMT_VERSION=4.14.5
 ARG TERRAFORM_DOCS_VERSION=0.18.0
