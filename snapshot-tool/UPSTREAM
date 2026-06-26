@@ -1,0 +1,7 @@
+Source:  https://github.com/aws-samples/bottlerocket-images-cache
+Commit:  e98a993afbe66dba17ebb27c9a89440a854bb8ee
+License: MIT-0 (see LICENSE)
+
+Vendored copy of the Bottlerocket image-cache snapshot builder.
+Do not edit in place — to update, re-copy snapshot.sh + ebs-snapshot-instance.yaml
+from upstream at a newer commit in a reviewed PR and bump the Commit line above.
