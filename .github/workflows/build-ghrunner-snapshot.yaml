@@ -169,6 +169,9 @@ jobs:
             echo "::error::expected exactly 1 ebs_snapshot_id line in $TARGET_FILE, found $matches"
             exit 1
           fi
+          # Capture the currently-live id (pre-bump) so the prune step never deletes it.
+          PREV_SNAP_ID=$(grep -oE 'snap-[0-9a-f]+' "$TARGET_FILE" | head -1)
+          echo "PREV_SNAP_ID=$PREV_SNAP_ID" >> "$GITHUB_ENV"
           sed -i -E "s|^([[:space:]]*ebs_snapshot_id:[[:space:]]*).*|\1\"${SNAP_ID}\"|" "$TARGET_FILE"
           git --no-pager diff -- "$TARGET_FILE"
 
@@ -188,9 +191,35 @@ jobs:
 
             - New snapshot: `${{ steps.snapshot.outputs.snap_id }}`
             - Built from: `${{ github.repository }}` run ${{ github.run_id }}
-            - Images cached: `${{ github.event.inputs.images }}`
+            - Images cached: `${{ env.IMAGES }}`
 
             Review, then run `atmos plan` and apply via TACOS.
+
+      - name: Prune old snapshots (keep newest 3)
+        # Best-effort cleanup so snapshots don't accumulate (~2/month, 200 GiB each).
+        # Keeps the newest 3, and always protects the just-built id and the
+        # currently-live id. Bounded by the role's DeleteSnapshot tag/region condition.
+        continue-on-error: true
+        env:
+          KEEP: "3"
+          NEW_ID: ${{ steps.snapshot.outputs.snap_id }}
+        run: |
+          set -euo pipefail
+          mapfile -t SNAPS < <(aws ec2 describe-snapshots --owner-ids self --region "$REGION" \
+            --filters 'Name=tag:Name,Values=Bottlerocket Data Volume' \
+            --query 'reverse(sort_by(Snapshots,&StartTime))[].SnapshotId' --output text | tr '\t' '\n')
+          echo "Found ${#SNAPS[@]} snapshots; keeping newest $KEEP + live ($PREV_SNAP_ID) + new ($NEW_ID)"
+          i=0
+          for s in "${SNAPS[@]}"; do
+            [ -z "$s" ] && continue
+            i=$((i+1))
+            if [ "$i" -le "$KEEP" ] || [ "$s" = "$NEW_ID" ] || [ "$s" = "$PREV_SNAP_ID" ]; then
+              echo "keep  $s"; continue
+            fi
+            echo "prune $s"
+            aws ec2 delete-snapshot --region "$REGION" --snapshot-id "$s" \
+              || echo "::warning::failed to delete $s"
+          done
 
       - name: Slack notify (success)
         if: success()
