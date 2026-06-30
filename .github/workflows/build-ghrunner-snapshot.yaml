@@ -44,7 +44,6 @@ on:
 env:
   TARGET_REPO: analyticsMD/devops-multiaccount
   TARGET_FILE: stacks/internal/eks/uw2-prod-eks.yaml
-  YQ_PATH: .components.helmfile.karpenter-config-github-actions.vars.ebs_snapshot_id
   SLACK_CHANNEL_ID: C0830SADR0X # devops-github-actions
   # Snapshot builder is vendored at snapshot-tool/ (see snapshot-tool/UPSTREAM).
 
@@ -119,15 +118,21 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           path: devops-multiaccount
 
-      - name: Install yq (mikefarah)
-        uses: mikefarah/yq@v4.44.3
-
       - name: Update ebs_snapshot_id
         working-directory: devops-multiaccount
         env:
           SNAP_ID: ${{ steps.snapshot.outputs.snap_id }}
         run: |
-          yq -i "${YQ_PATH} = strenv(SNAP_ID)" "$TARGET_FILE"
+          # Surgical single-line replace. `yq -i` rewrites the file in its canonical
+          # form and strips blank lines between mappings, producing a noisy diff that
+          # fails the repo's "scoped specifically" review gate. ebs_snapshot_id is
+          # unique in the file, so a targeted sed keeps the diff to exactly one line.
+          matches=$(grep -cE '^[[:space:]]*ebs_snapshot_id:' "$TARGET_FILE")
+          if [ "$matches" -ne 1 ]; then
+            echo "::error::expected exactly 1 ebs_snapshot_id line in $TARGET_FILE, found $matches"
+            exit 1
+          fi
+          sed -i -E "s|^([[:space:]]*ebs_snapshot_id:[[:space:]]*).*|\1\"${SNAP_ID}\"|" "$TARGET_FILE"
           git --no-pager diff -- "$TARGET_FILE"
 
       - name: Open signed PR
