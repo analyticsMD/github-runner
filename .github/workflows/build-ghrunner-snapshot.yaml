@@ -40,15 +40,38 @@ on:
         description: "Security group ID for the builder instance (blank = default VPC SG)"
         required: false
         default: ""
+  # Auto-rebuild when the runner image changes. "Build and Push Docker Image"
+  # runs on a 1st/15th cron (~2x/month) + manual dispatch; chaining off its
+  # completion keeps the cached snapshot in sync with the image it caches.
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types: [completed]
+
+# Never run two builders concurrently — each spins up a CFN stack and opens a PR.
+concurrency:
+  group: ghrunner-snapshot-build
+  cancel-in-progress: false
 
 env:
   TARGET_REPO: analyticsMD/devops-multiaccount
   TARGET_FILE: stacks/internal/eks/uw2-prod-eks.yaml
   SLACK_CHANNEL_ID: C0830SADR0X # devops-github-actions
   # Snapshot builder is vendored at snapshot-tool/ (see snapshot-tool/UPSTREAM).
+  # Build-parameter defaults. workflow_dispatch overrides these via inputs; the
+  # workflow_run (image-rebuild) trigger carries NO inputs, so these are used.
+  DEFAULT_IMAGES: "351480950201.dkr.ecr.us-west-2.amazonaws.com/github-runner:latest"
+  DEFAULT_REGION: "us-west-2"
+  DEFAULT_BR_AMI_PARAM: "/aws/service/bottlerocket/aws-k8s-1.33/x86_64/latest/image_id"
+  DEFAULT_SNAPSHOT_SIZE: "200"
+  DEFAULT_INSTANCE_ROLE: "KarpenterNodeRole-prod-eks-cluster"
+  DEFAULT_SUBNET_ID: "subnet-071a8bf1ba92508f3"
 
 jobs:
   build-snapshot:
+    # On workflow_run, only proceed if the image build succeeded; always run for manual dispatch.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,11 +81,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Resolve build parameters
+        # workflow_run carries no inputs — fall back to the DEFAULT_* env so the
+        # image-triggered rebuild uses the same parameters as a default dispatch.
+        run: |
+          {
+            echo "REGION=${{ github.event.inputs.region || env.DEFAULT_REGION }}"
+            echo "IMAGES=${{ github.event.inputs.images || env.DEFAULT_IMAGES }}"
+            echo "BR_AMI_PARAM=${{ github.event.inputs.bottlerocket_ami_param || env.DEFAULT_BR_AMI_PARAM }}"
+            echo "SNAPSHOT_SIZE=${{ github.event.inputs.snapshot_size || env.DEFAULT_SNAPSHOT_SIZE }}"
+            echo "INSTANCE_ROLE=${{ github.event.inputs.instance_role || env.DEFAULT_INSTANCE_ROLE }}"
+            echo "SUBNET_ID=${{ github.event.inputs.subnet_id || env.DEFAULT_SUBNET_ID }}"
+            echo "SECURITY_GROUP_ID=${{ github.event.inputs.security_group_id }}"
+          } >> "$GITHUB_ENV"
+
       - name: Authenticate via GitHub Actions OIDC (auth role)
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::351480950201:role/qv-internal-github-actions-auth-role
-          aws-region: ${{ github.event.inputs.region }}
+          aws-region: ${{ env.REGION }}
 
       - name: Chain into snapshot-build role with repository session tag
         # Mirrors buid-push-image.yaml's role-chaining pattern. The role name ends
@@ -90,15 +127,15 @@ jobs:
         id: snapshot
         working-directory: snapshot-tool
         run: |
-          ARGS=(-q -r "${{ github.event.inputs.region }}" \
-                -a "${{ github.event.inputs.bottlerocket_ami_param }}" \
-                -s "${{ github.event.inputs.snapshot_size }}" \
-                -R "${{ github.event.inputs.instance_role }}" \
-                -sn "${{ github.event.inputs.subnet_id }}" \
+          ARGS=(-q -r "$REGION" \
+                -a "$BR_AMI_PARAM" \
+                -s "$SNAPSHOT_SIZE" \
+                -R "$INSTANCE_ROLE" \
+                -sn "$SUBNET_ID" \
                 -p false)
-          [ -n "${{ github.event.inputs.security_group_id }}" ] && ARGS+=(-sg "${{ github.event.inputs.security_group_id }}")
+          [ -n "$SECURITY_GROUP_ID" ] && ARGS+=(-sg "$SECURITY_GROUP_ID")
           # -q prints ONLY the snapshot id to stdout; logs go to stderr.
-          SNAP_ID=$(./snapshot.sh "${ARGS[@]}" "${{ github.event.inputs.images }}")
+          SNAP_ID=$(./snapshot.sh "${ARGS[@]}" "$IMAGES")
           echo "Built snapshot: $SNAP_ID"
           echo "snap_id=$SNAP_ID" >> "$GITHUB_OUTPUT"
 
