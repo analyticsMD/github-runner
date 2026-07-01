@@ -40,12 +40,14 @@ on:
         description: "Security group ID for the builder instance (blank = default VPC SG)"
         required: false
         default: ""
-  # Auto-rebuild when the runner image changes. "Build and Push Docker Image"
-  # runs on a 1st/15th cron (~2x/month) + manual dispatch; chaining off its
-  # completion keeps the cached snapshot in sync with the image it caches.
+  # Auto-rebuild when the runner image changes on main. "Build and Push Docker
+  # Image" runs on a 1st/15th cron (~2x/month) + manual dispatch; chaining off its
+  # completion keeps the cached snapshot in sync with the image it caches. The
+  # `branches: [main]` filter restricts this to image builds that ran on main.
   workflow_run:
     workflows: ["Build and Push Docker Image"]
     types: [completed]
+    branches: [main]
 
 # Never run two builders concurrently — each spins up a CFN stack and opens a PR.
 concurrency:
@@ -68,10 +70,13 @@ env:
 
 jobs:
   build-snapshot:
-    # On workflow_run, only proceed if the image build succeeded; always run for manual dispatch.
+    # Manual dispatch always runs. On workflow_run, only proceed when the image
+    # build on main succeeded AND was cron-triggered (the scheduled rebuild) — so
+    # manual/one-off image rebuilds don't also kick off a snapshot build.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'schedule')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -160,19 +165,24 @@ jobs:
         env:
           SNAP_ID: ${{ steps.snapshot.outputs.snap_id }}
         run: |
-          # Surgical single-line replace. `yq -i` rewrites the file in its canonical
-          # form and strips blank lines between mappings, producing a noisy diff that
-          # fails the repo's "scoped specifically" review gate. ebs_snapshot_id is
-          # unique in the file, so a targeted sed keeps the diff to exactly one line.
-          matches=$(grep -cE '^[[:space:]]*ebs_snapshot_id:' "$TARGET_FILE")
+          # Surgical single-line replace keyed off the `managed-by` marker comment on
+          # the target line. `yq -i` would rewrite the file in canonical form (stripping
+          # blank lines between mappings and expanding YAML anchors), producing a noisy
+          # diff that fails the repo's "scoped specifically" review gate. Keying the sed
+          # off the marker keeps the diff to exactly one line and stays correct if another
+          # Karpenter NodePool later adds its own ebs_snapshot_id.
+          MARKER='managed-by: build-ghrunner-snapshot'
+          matches=$(grep -cE "ebs_snapshot_id:.*# *${MARKER}" "$TARGET_FILE" || true)
           if [ "$matches" -ne 1 ]; then
-            echo "::error::expected exactly 1 ebs_snapshot_id line in $TARGET_FILE, found $matches"
+            echo "::error::expected exactly 1 ebs_snapshot_id line marked '${MARKER}' in $TARGET_FILE, found $matches"
             exit 1
           fi
-          # Capture the currently-live id (pre-bump) so the prune step never deletes it.
-          PREV_SNAP_ID=$(grep -oE 'snap-[0-9a-f]+' "$TARGET_FILE" | head -1)
+          # Capture the currently-live id (pre-bump) from the marked line so the prune
+          # step never deletes it.
+          PREV_SNAP_ID=$(grep -E "ebs_snapshot_id:.*# *${MARKER}" "$TARGET_FILE" | grep -oE 'snap-[0-9a-f]+')
           echo "PREV_SNAP_ID=$PREV_SNAP_ID" >> "$GITHUB_ENV"
-          sed -i -E "s|^([[:space:]]*ebs_snapshot_id:[[:space:]]*).*|\1\"${SNAP_ID}\"|" "$TARGET_FILE"
+          # Replace only the marked line, preserving the marker comment.
+          sed -i -E "s|^([[:space:]]*ebs_snapshot_id:[[:space:]]*)\"?snap-[0-9a-f]+\"?([[:space:]]*#.*${MARKER}.*)$|\1\"${SNAP_ID}\"\2|" "$TARGET_FILE"
           git --no-pager diff -- "$TARGET_FILE"
 
       - name: Open signed PR
