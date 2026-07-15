@@ -115,12 +115,21 @@ jobs:
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
+      # Resets GitHub's 60-day scheduled-workflow inactivity timer (public repos only).
+      # Commits via the REST Contents API so GitHub signs them (web-flow) and they pass
+      # the "commits must have verified signatures" ruleset on main; plain git commits
+      # from the runner are unsigned and get rejected. Non-fatal: keepalive must never
+      # mask a real build result (the snapshot workflow gates on this run's success).
       - name: Keep workflow active
         if: always() && github.event_name == 'schedule'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          echo "Last workflow run: $(date -u)" > .github/.workflow-keep-alive
-          git add .github/.workflow-keep-alive
-          git diff --staged --quiet || git commit -m "chore: keep workflow active [skip ci]"
-          git push
+          CONTENT=$(date -u +"Last workflow run: %Y-%m-%dT%H:%M:%SZ")
+          SHA=$(gh api "repos/${{ github.repository }}/contents/.github/.workflow-keep-alive" --jq .sha 2>/dev/null || true)
+          gh api -X PUT "repos/${{ github.repository }}/contents/.github/.workflow-keep-alive" \
+            -f message="chore: keep workflow active [skip ci]" \
+            -f content="$(printf '%s' "$CONTENT" | base64 -w0)" \
+            ${SHA:+-f sha="$SHA"} \
+            -f branch=main
