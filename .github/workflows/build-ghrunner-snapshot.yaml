@@ -281,7 +281,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "❌ *ghrunner EBS snapshot workflow failed*\n*Repo:* ${{ github.repository }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n<!channel>"
+                    "text": "❌ *ghrunner EBS snapshot workflow failed*\n*Repo:* ${{ github.repository }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n<!subteam^${{ env.SLACK_GROUP_ID }}> <!channel>"
                   }
                 }
               ]
