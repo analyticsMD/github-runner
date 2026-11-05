@@ -207,9 +207,10 @@ jobs:
 
             Review, then run `atmos plan` and apply via TACOS.
 
-      - name: Request devops-admin review
+      - name: Request ${{ env.REVIEW_TEAM }} review
+        id: review
         # Separate step so a failed request (the App needs org Members: read to
-        # resolve teams) never fails the run after the PR is open.
+        # resolve teams) never fails the run after the PR is open. Slack reports it.
         if: steps.cpr.outputs.pull-request-number != ''
         continue-on-error: true
         env:
@@ -258,7 +259,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "✅ *ghrunner EBS snapshot built:* `${{ steps.snapshot.outputs.snap_id }}`\nPR: ${{ steps.cpr.outputs.pull-request-url }}\nReview, `atmos plan` and `atmos apply` to roll out. Owner: `${{ env.REVIEW_TEAM }}`."
+                    "text": "✅ *ghrunner EBS snapshot built:* `${{ steps.snapshot.outputs.snap_id }}`\nPR: ${{ steps.cpr.outputs.pull-request-url }}\n${{ steps.review.outcome == 'success' && format('Review requested from `{0}`.', env.REVIEW_TEAM) || format('⚠️ Review request to `{0}` failed, see {1}/{2}/actions/runs/{3}', env.REVIEW_TEAM, github.server_url, github.repository, github.run_id) }}\nTo roll out, comment `atmos plan` and then `atmos apply` on the PR."
                   }
                 }
               ]
