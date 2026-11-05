@@ -58,6 +58,7 @@ env:
   TARGET_REPO: analyticsMD/devops-multiaccount
   TARGET_FILE: stacks/internal/eks/uw2-prod-eks.yaml
   SLACK_CHANNEL_ID: C0830SADR0X # devops-github-actions
+  REVIEW_TEAM: devops-admin
   # Snapshot builder is vendored at snapshot-tool/ (see snapshot-tool/UPSTREAM).
   # Build-parameter defaults. workflow_dispatch overrides these via inputs; the
   # workflow_run (image-rebuild) trigger carries NO inputs, so these are used.
@@ -186,6 +187,7 @@ jobs:
           git --no-pager diff -- "$TARGET_FILE"
 
       - name: Open signed PR
+        id: cpr
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -204,6 +206,18 @@ jobs:
             - Images cached: `${{ env.IMAGES }}`
 
             Review, then run `atmos plan` and apply via TACOS.
+
+      - name: Request devops-admin review
+        # Separate step so a failed request (the App needs org Members: read to
+        # resolve teams) never fails the run after the PR is open.
+        if: steps.cpr.outputs.pull-request-number != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          gh api -X POST "repos/$TARGET_REPO/pulls/$PR_NUMBER/requested_reviewers" \
+            -f "team_reviewers[]=$REVIEW_TEAM" --jq '.requested_teams[].slug'
 
       - name: Prune old snapshots (keep newest 3)
         # Best-effort cleanup so snapshots don't accumulate (~2/month, 200 GiB each).
@@ -244,7 +258,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "✅ *ghrunner EBS snapshot built:* `${{ steps.snapshot.outputs.snap_id }}`\nPR opened in *${{ env.TARGET_REPO }}* — review + `atmos plan` to roll out."
+                    "text": "✅ *ghrunner EBS snapshot built:* `${{ steps.snapshot.outputs.snap_id }}`\nPR: ${{ steps.cpr.outputs.pull-request-url }}\nReview, `atmos plan` and `atmos apply` to roll out. Owner: `${{ env.REVIEW_TEAM }}`."
                   }
                 }
               ]
