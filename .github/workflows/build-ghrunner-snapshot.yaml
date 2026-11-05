@@ -59,6 +59,7 @@ env:
   TARGET_FILE: stacks/internal/eks/uw2-prod-eks.yaml
   SLACK_CHANNEL_ID: C0830SADR0X # devops-github-actions
   REVIEW_TEAM: devops-admin
+  SLACK_GROUP_ID: S01QMNZJQE9 # devops-team
   # Snapshot builder is vendored at snapshot-tool/ (see snapshot-tool/UPSTREAM).
   # Build-parameter defaults. workflow_dispatch overrides these via inputs; the
   # workflow_run (image-rebuild) trigger carries NO inputs, so these are used.
@@ -259,7 +260,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "✅ *ghrunner EBS snapshot built:* `${{ steps.snapshot.outputs.snap_id }}`\nPR: ${{ steps.cpr.outputs.pull-request-url }}\n${{ steps.review.outcome == 'success' && format('Review requested from `{0}`.', env.REVIEW_TEAM) || format('⚠️ Review request to `{0}` failed, see {1}/{2}/actions/runs/{3}', env.REVIEW_TEAM, github.server_url, github.repository, github.run_id) }}\nTo roll out, comment `atmos plan` and then `atmos apply` on the PR."
+                    "text": "✅ *ghrunner EBS snapshot built:* `${{ steps.snapshot.outputs.snap_id }}`\nPR: ${{ steps.cpr.outputs.pull-request-url }}\n${{ steps.review.outcome == 'success' && format('Review requested from `{0}`.', env.REVIEW_TEAM) || format('⚠️ Review request to `{0}` failed, see {1}/{2}/actions/runs/{3}', env.REVIEW_TEAM, github.server_url, github.repository, github.run_id) }}\nTo roll out, comment `atmos plan` and then `atmos apply` on the PR.\n<!subteam^${{ env.SLACK_GROUP_ID }}>"
                   }
                 }
               ]
